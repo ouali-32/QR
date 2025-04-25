@@ -1,0 +1,9 @@
+flask
+flask-sqlalchemy
+mysqlclient
+qrcode[pil]
+pyzbar
+pillow
+cryptography
+python-dotenv
+pymysql

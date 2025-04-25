@@ -1,0 +1,31 @@
+             
+
+services:
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://qr_user:qr_password@db/qr_secure?connect_timeout=10
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure  # Ajoutez cette ligne
+
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_DATABASE=qr_secure
+      - MYSQL_USER=qr_user
+      - MYSQL_PASSWORD=qr_password
+      - MYSQL_ROOT_PASSWORD=root_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
