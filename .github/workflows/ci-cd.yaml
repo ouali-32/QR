@@ -54,17 +54,19 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
-      - name: Wait for MySQL to be ready
-        run: sleep 20  # Donne plus de temps à MySQL pour démarrer
-
-      - name: Run integration tests
+      - name: Initialize database
         run: |
           export PYTHONPATH=$GITHUB_WORKSPACE
           python -c "
           from appV2_2 import app, db
+          app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://qr_user:qr_password@localhost:3306/qr_secure'
           with app.app_context():
               db.create_all()
           "
+
+      - name: Run integration tests
+        run: |
+          export PYTHONPATH=$GITHUB_WORKSPACE
           pytest tests/integration/ -v
 
   docker-build:
