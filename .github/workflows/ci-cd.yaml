@@ -41,7 +41,7 @@ jobs:
           MYSQL_PASSWORD: qr_password
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping -uroot -proot" --health-interval=10s
+        options: --health-cmd="mysqladmin ping -uroot -proot" --health-interval=10s --health-start-period=30s
 
     steps:
       - uses: actions/checkout@v4
@@ -54,9 +54,17 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
+      - name: Wait for MySQL to be ready
+        run: sleep 20  # Donne plus de temps à MySQL pour démarrer
+
       - name: Run integration tests
         run: |
           export PYTHONPATH=$GITHUB_WORKSPACE
+          python -c "
+          from appV2_2 import app, db
+          with app.app_context():
+              db.create_all()
+          "
           pytest tests/integration/ -v
 
   docker-build:
