@@ -3,7 +3,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 import base64
 
-PRIVATE_KEY_PATH = r"public_key.pem"
+PRIVATE_KEY_PATH = r"private_key.pem"
 
 def load_private_key():
     with open(PRIVATE_KEY_PATH, "rb") as key_file:

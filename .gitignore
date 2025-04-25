@@ -1,1 +1,5 @@
 .env\n*.pem\n__pycache__/
+.env
+*.pem
+__pycache__/
+instance/
