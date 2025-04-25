@@ -23,7 +23,9 @@ jobs:
           pip install pytest
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v
+        run: |
+          cd tests/unit
+          python -m pytest -v
 
   integration-tests:
     needs: unit-tests
@@ -42,12 +44,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
           pip install pytest
+
       - name: Run integration tests
-        run: pytest tests/integration/ -v
+        run: |
+          # Solution magique pour les imports
+          export PYTHONPATH="$PYTHONPATH:$GITHUB_WORKSPACE"
+          cd tests/integration
+          python -m pytest -v
 
   docker-build:
     needs: integration-tests

@@ -1,10 +1,17 @@
-import pytest
+import sys
+from pathlib import Path
+
+# Ajoute le répertoire racine au Python Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
 from appV2_2 import app, db
+import pytest
 
 @pytest.fixture(autouse=True)
-def setup_app():
-    """Configure l'application pour les tests d'intégration"""
+def app_context():
+    """Fournit un contexte d'application pour tous les tests"""
     with app.app_context():
         db.create_all()
-        yield  # Exécute le test ici
+        yield
+        db.session.remove()
         db.drop_all()
