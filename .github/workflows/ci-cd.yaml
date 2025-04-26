@@ -27,6 +27,16 @@ jobs:
           --health-retries=3
           --name db
 
+      api:
+        image: your-api-image  # Remplace cette ligne par l'image Docker de ton API
+        ports:
+          - 5000:5000
+        options: >-
+          --health-cmd="curl --silent --fail http://localhost:5000"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
     steps:
       - uses: actions/checkout@v3
 
@@ -48,6 +58,17 @@ jobs:
               break
             fi
             echo "⏳ Waiting for MySQL..."
+            sleep 2
+          done
+
+      - name: Wait for API to be ready
+        run: |
+          for i in {1..30}; do
+            if curl --silent --fail http://localhost:5000; then
+              echo "✅ API is up!"
+              break
+            fi
+            echo "⏳ Waiting for the API..."
             sleep 2
           done
 
