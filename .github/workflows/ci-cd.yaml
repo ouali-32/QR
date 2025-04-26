@@ -56,4 +56,4 @@ jobs:
           DATABASE_URI: mysql+pymysql://qr_user:qr_password@db/qr_secure
         run: |
           export PYTHONPATH=$GITHUB_WORKSPACE
-          python your_test_script_or_run.py
+          python test_ouali.py
