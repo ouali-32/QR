@@ -11,9 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Étape 1 : Checkout du code source
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Étape 2 : Installer Docker
       - name: Set up Docker
         run: |
           sudo apt-get update
@@ -27,10 +29,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
+      # Étape 3 : Construire et démarrer les containers Docker
       - name: Build and start Docker containers
         run: |
           docker compose up -d --build
 
+      # Étape 4 : Attendre que MySQL soit prêt
       - name: Wait for MySQL to be ready
         run: |
           echo "⏳ Waiting for MySQL to be ready..."
@@ -42,6 +46,7 @@ jobs:
             sleep 2
           done
 
+      # Étape 5 : Attendre que l'API soit prête
       - name: Wait for API to be ready
         run: |
           echo "⏳ Waiting for API to be ready..."
@@ -53,14 +58,21 @@ jobs:
             sleep 2
           done
 
+      # Étape 6 : Installer les dépendances Python
       - name: Install Python dependencies
         run: |
           pip install requests pyzbar cryptography pillow
 
+      # Étape 7 : Définir PYTHONPATH pour que 'decryptor' soit trouvé
+      - name: Set PYTHONPATH
+        run: export PYTHONPATH=$PYTHONPATH:$(pwd)
+
+      # Étape 8 : Exécuter les tests d'intégration
       - name: Run integration tests
         run: |
           python tests/integration/test_ouali.py
 
+      # Étape 9 : Arrêter et supprimer les containers Docker
       - name: Stop and remove containers
         run: |
           docker compose down
