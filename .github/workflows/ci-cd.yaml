@@ -11,20 +11,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout du code source
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. Set up Docker (Docker est déjà installé sur ubuntu-latest)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # 3. Build et lancer docker-compose
+      # 👇 Nouvelle étape pour installer docker-compose-plugin
+      - name: Install docker-compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose-plugin
+
       - name: Build and start Docker containers
         run: |
-          docker-compose up -d --build
+          docker compose up -d --build
 
-      # 4. Attendre que MySQL soit prêt
       - name: Wait for MySQL to be ready
         run: |
           echo "⏳ Waiting for MySQL to be ready..."
@@ -36,7 +38,6 @@ jobs:
             sleep 2
           done
 
-      # 5. Attendre que l'API soit prête
       - name: Wait for API to be ready
         run: |
           echo "⏳ Waiting for API to be ready..."
@@ -48,17 +49,14 @@ jobs:
             sleep 2
           done
 
-      # 6. Installer les dépendances pour les tests (requests + pyzbar + cryptography...)
       - name: Install Python dependencies
         run: |
           pip install requests pyzbar cryptography pillow
 
-      # 7. Lancer les tests d'intégration
       - name: Run integration tests
         run: |
           python tests/integration/test_ouali.py
 
-      # 8. Nettoyer les conteneurs
       - name: Stop and remove containers
         run: |
-          docker-compose down
+          docker compose down
