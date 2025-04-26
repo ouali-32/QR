@@ -10,71 +10,55 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        ports:
-          - 3306:3306
-        env:
-          MYSQL_DATABASE: qr_secure
-          MYSQL_USER: qr_user
-          MYSQL_PASSWORD: qr_password
-          MYSQL_ROOT_PASSWORD: root
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-          --name db
-
-      api:
-        image: your-api-image  # Remplace cette ligne par l'image Docker de ton API
-        ports:
-          - 5000:5000
-        options: >-
-          --health-cmd="curl --silent --fail http://localhost:5000"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     steps:
-      - uses: actions/checkout@v3
+      # 1. Checkout du code source
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+      # 2. Set up Docker (Docker est déjà installé sur ubuntu-latest)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-      - name: Install dependencies
+      # 3. Build et lancer docker-compose
+      - name: Build and start Docker containers
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          docker-compose up -d --build
 
+      # 4. Attendre que MySQL soit prêt
       - name: Wait for MySQL to be ready
         run: |
+          echo "⏳ Waiting for MySQL to be ready..."
           for i in {1..30}; do
-            if mysqladmin ping -h db -u qr_user -pqr_password --silent; then
+            if docker exec $(docker ps -qf "name=db") mysqladmin ping -h localhost -u qr_user -pqr_password --silent; then
               echo "✅ MySQL is up!"
               break
             fi
-            echo "⏳ Waiting for MySQL..."
             sleep 2
           done
 
+      # 5. Attendre que l'API soit prête
       - name: Wait for API to be ready
         run: |
+          echo "⏳ Waiting for API to be ready..."
           for i in {1..30}; do
             if curl --silent --fail http://localhost:5000; then
               echo "✅ API is up!"
               break
             fi
-            echo "⏳ Waiting for the API..."
             sleep 2
           done
 
-      - name: Run tests
-        env:
-          DATABASE_URI: mysql+pymysql://qr_user:qr_password@db/qr_secure
+      # 6. Installer les dépendances pour les tests (requests + pyzbar + cryptography...)
+      - name: Install Python dependencies
         run: |
-          export PYTHONPATH=$GITHUB_WORKSPACE
+          pip install requests pyzbar cryptography pillow
+
+      # 7. Lancer les tests d'intégration
+      - name: Run integration tests
+        run: |
           python tests/integration/test_ouali.py
+
+      # 8. Nettoyer les conteneurs
+      - name: Stop and remove containers
+        run: |
+          docker-compose down
