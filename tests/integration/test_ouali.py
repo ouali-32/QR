@@ -1,9 +1,13 @@
 import requests
-from decryptor import decrypt  # Assurez-vous d'avoir decryptor.py dans le même dossier
+from decryptor import decrypt
 
 # Configuration
 API_URL = "http://localhost:5000"
 SECRET_WORD = "elias bidrou"
+
+# Charger la clé privée depuis un fichier
+with open("private_key.pem", "rb") as f:
+    PRIVATE_KEY = f.read()
 
 print("1. Génération du QR code...")
 response = requests.post(
@@ -25,7 +29,7 @@ if response.status_code == 200:
         print("🔒 Données chiffrées :", encrypted_data)
         
         print("\n3. Déchiffrement avec votre clé privée...")
-        decrypted = decrypt(encrypted_data)
+        decrypted = decrypt(encrypted_data, PRIVATE_KEY)  # <-- Clé ajoutée ici
         print(f"🔑 Résultat : {decrypted} {'✅' if decrypted == SECRET_WORD else '❌'}")
     else:
         print("❌ Erreur vérification :", verify_response.text)
