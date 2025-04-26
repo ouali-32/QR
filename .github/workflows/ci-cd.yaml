@@ -57,7 +57,18 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest
+          pip install pytest pymysql
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h127.0.0.1 -P3306 -uqr_user -pqr_password --silent; then
+              echo "✅ MySQL is up!"
+              break
+            fi
+            echo "⏳ Waiting for MySQL..."
+            sleep 2
+          done
 
       - name: Initialize database
         run: |
@@ -69,17 +80,10 @@ jobs:
               db.create_all()
           "
 
-      - name: Start Flask server (background)
-        run: |
-          export FLASK_APP=appV2_2.py
-          export PYTHONPATH=$GITHUB_WORKSPACE
-          flask run --host=0.0.0.0 --port=5000 &
-          sleep 5  # attendre que le serveur démarre correctement
-
-      - name: Run integration test script
+      - name: Run integration tests
         run: |
           export PYTHONPATH=$GITHUB_WORKSPACE
-          python tests/integration/test_ouali.py
+          pytest tests/integration/ -v
 
   docker-build:
     needs: integration-tests
@@ -93,7 +97,7 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push Docker images
         run: |
           docker-compose build
           docker-compose push
