@@ -65,7 +65,7 @@ jobs:
 
       # Étape 7 : Définir PYTHONPATH pour que 'decryptor' soit trouvé
       - name: Set PYTHONPATH
-        run: export PYTHONPATH=$PYTHONPATH:$(pwd)
+        run: export PYTHONPATH=$(pwd)/src:$PYTHONPATH
 
       # Étape 8 : Exécuter les tests d'intégration
       - name: Run integration tests
