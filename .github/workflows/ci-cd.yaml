@@ -49,6 +49,11 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libzbar-dev
 
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
@@ -64,10 +69,17 @@ jobs:
               db.create_all()
           "
 
-      - name: Run integration tests
+      - name: Start Flask server (background)
+        run: |
+          export FLASK_APP=appV2_2.py
+          export PYTHONPATH=$GITHUB_WORKSPACE
+          flask run --host=0.0.0.0 --port=5000 &
+          sleep 5  # attendre que le serveur démarre correctement
+
+      - name: Run integration test script
         run: |
           export PYTHONPATH=$GITHUB_WORKSPACE
-          pytest tests/integration/ -v
+          python tests/integration/test_ouali.py
 
   docker-build:
     needs: integration-tests
