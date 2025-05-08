@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: your-username/qr-app   # Remplace "your-username" par ton identifiant Docker Hub
+  IMAGE_NAME: oualibaleh/qr-app   # Remplace "your-username" par ton identifiant Docker Hub
   KUBE_NAMESPACE: default
 
 jobs:
