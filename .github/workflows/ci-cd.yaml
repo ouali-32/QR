@@ -7,20 +7,18 @@ on:
     branches: [main]
 
 env:
-  REGISTRY: docker.io                   # Registre Docker (ex: ghcr.io, gcr.io)
-  IMAGE_NAME: your-username/qr-app      # Nom de l'image Docker
-  KUBE_NAMESPACE: default               # Namespace Kubernetes
+  REGISTRY: docker.io
+  IMAGE_NAME: your-username/qr-app   # Remplace "your-username" par ton identifiant Docker Hub
+  KUBE_NAMESPACE: default
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      # Étape 1 : Checkout du code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Étape 2 : Installer Docker
       - name: Set up Docker
         run: |
           sudo apt-get update
@@ -34,11 +32,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-      # Étape 3 : Lancer Docker Compose
       - name: Start Docker containers
         run: docker compose up -d --build
 
-      # Étape 4 : Attendre MySQL
       - name: Wait for MySQL
         run: |
           echo "⏳ Waiting for MySQL..."
@@ -50,7 +46,6 @@ jobs:
             sleep 2
           done
 
-      # Étape 5 : Attendre l'API
       - name: Wait for API
         run: |
           echo "⏳ Waiting for API..."
@@ -62,17 +57,12 @@ jobs:
             sleep 2
           done
 
-      # Étape 6 : Installer les dépendances
       - name: Install Python dependencies
-        run: |
-          pip install requests pyzbar cryptography pillow
+        run: pip install requests pyzbar cryptography pillow
 
-      # Étape 7 : Exécuter les tests
       - name: Run integration tests
-        run: |
-          python tests/integration/test_ouali.py
+        run: python tests/integration/test_ouali.py
 
-      # Étape 8 : Arrêter les containers
       - name: Cleanup
         run: docker compose down
 
@@ -82,28 +72,21 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      # Étape 1 : Checkout du code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Étape 2 : Construire l'image Docker
-      - name: Build Docker image
-        run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
-
-      # ✅ Étape 3 : Connexion au Docker Registry via action officielle
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      # Étape 4 : Pousser l'image
+      - name: Build Docker image
+        run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
       - name: Push Docker image
-        run: |
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      # Étape 5 : Déployer sur Kubernetes
       - name: Deploy to Kubernetes
         env:
           KUBECONFIG: ${{ secrets.KUBECONFIG }}
