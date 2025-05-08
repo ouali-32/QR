@@ -77,9 +77,9 @@ jobs:
         run: docker compose down
 
   deploy-to-kubernetes:
-    needs: build-and-test                # Dépend du job build-and-test
+    needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'  # Déploie seulement sur la branche main
+    if: github.ref == 'refs/heads/main'
 
     steps:
       # Étape 1 : Checkout du code
@@ -91,22 +91,22 @@ jobs:
         run: |
           docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
 
-      # Étape 3 : Pousser l'image
+      # ✅ Étape 3 : Connexion au Docker Registry via action officielle
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Étape 4 : Pousser l'image
       - name: Push Docker image
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-          echo "$DOCKER_PASSWORD" | docker login ${{ env.REGISTRY }} -u $DOCKER_USERNAME --password-stdin
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      # Étape 4 : Déployer sur Kubernetes
+      # Étape 5 : Déployer sur Kubernetes
       - name: Deploy to Kubernetes
         env:
-          KUBECONFIG: ${{ secrets.KUBECONFIG }}  # Configuration du cluster
+          KUBECONFIG: ${{ secrets.KUBECONFIG }}
         run: |
-          # Mettre à jour la version de l'image
           sed -i "s|image:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|" k8s/deployment.yaml
-          
-          # Appliquer les configurations
           kubectl apply -f k8s/ -n ${{ env.KUBE_NAMESPACE }}
