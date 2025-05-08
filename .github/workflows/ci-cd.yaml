@@ -7,18 +7,20 @@ on:
     branches: [main]
 
 env:
-  REGISTRY: docker.io
-  IMAGE_NAME: oualibaleh/qr-app   # Remplace "your-username" par ton identifiant Docker Hub
-  KUBE_NAMESPACE: default
+  REGISTRY: docker.io                  # Docker Hub (registre Docker)
+  IMAGE_NAME: your-username/qr-app     # Nom de l'image Docker
+  TAG: ${{ github.sha }}               # Tag basé sur le hash de commit
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
+      # Étape 1 : Checkout du code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Étape 2 : Installer Docker
       - name: Set up Docker
         run: |
           sudo apt-get update
@@ -32,9 +34,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
+      # Étape 3 : Lancer Docker Compose (si utilisé)
       - name: Start Docker containers
         run: docker compose up -d --build
 
+      # Étape 4 : Attendre MySQL (si utilisé dans Docker Compose)
       - name: Wait for MySQL
         run: |
           echo "⏳ Waiting for MySQL..."
@@ -46,6 +50,7 @@ jobs:
             sleep 2
           done
 
+      # Étape 5 : Attendre l'API (si utilisée dans Docker Compose)
       - name: Wait for API
         run: |
           echo "⏳ Waiting for API..."
@@ -57,39 +62,48 @@ jobs:
             sleep 2
           done
 
+      # Étape 6 : Installer les dépendances
       - name: Install Python dependencies
-        run: pip install requests pyzbar cryptography pillow
+        run: |
+          pip install requests pyzbar cryptography pillow
 
+      # Étape 7 : Exécuter les tests
       - name: Run integration tests
-        run: python tests/integration/test_ouali.py
+        run: |
+          python tests/integration/test_ouali.py
 
+      # Étape 8 : Arrêter les containers
       - name: Cleanup
         run: docker compose down
 
-  deploy-to-kubernetes:
-    needs: build-and-test
+  deploy-to-docker-hub:
+    needs: build-and-test                 # Dépend du job build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'    # Déploie seulement sur la branche main
 
     steps:
+      # Étape 1 : Checkout du code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Étape 2 : Construire l'image Docker
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} .
+
+      # Étape 3 : Se connecter à Docker Hub
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Build Docker image
-        run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
-
+      # Étape 4 : Pousser l'image sur Docker Hub
       - name: Push Docker image
-        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-
-      - name: Deploy to Kubernetes
-        env:
-          KUBECONFIG: ${{ secrets.KUBECONFIG }}
         run: |
-          sed -i "s|image:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|" k8s/deployment.yaml
-          kubectl apply -f k8s/ -n ${{ env.KUBE_NAMESPACE }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+      # Étape 5 : Optionnel (Exécuter l'image dans un container Docker sur un serveur)
+      # - name: Run Docker container (si nécessaire)
+      #   run: |
+      #     docker run -d --name my-app ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
