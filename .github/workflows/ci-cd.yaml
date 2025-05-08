@@ -1,21 +1,26 @@
-name: Build and Test QR API
+name: Build, Test, Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+env:
+  REGISTRY: docker.io                   # Registre Docker (ex: ghcr.io, gcr.io)
+  IMAGE_NAME: your-username/qr-app      # Nom de l'image Docker
+  KUBE_NAMESPACE: default               # Namespace Kubernetes
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      # Étape 1 : Checkout du code source (version mise à jour)
+      # Étape 1 : Checkout du code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Étape 2 : Installer Docker (inchangée)
+      # Étape 2 : Installer Docker
       - name: Set up Docker
         run: |
           sudo apt-get update
@@ -29,50 +34,79 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-      # Étape 3 : Construire et démarrer les containers Docker (inchangée)
-      - name: Build and start Docker containers
-        run: |
-          docker compose up -d --build
+      # Étape 3 : Lancer Docker Compose
+      - name: Start Docker containers
+        run: docker compose up -d --build
 
-      # Étape 4 : Attendre que MySQL soit prêt (inchangée)
-      - name: Wait for MySQL to be ready
+      # Étape 4 : Attendre MySQL
+      - name: Wait for MySQL
         run: |
-          echo "⏳ Waiting for MySQL to be ready..."
+          echo "⏳ Waiting for MySQL..."
           for i in {1..30}; do
             if docker exec $(docker ps -qf "name=db") mysqladmin ping -h localhost -u qr_user -pqr_password --silent; then
-              echo "✅ MySQL is up!"
+              echo "✅ MySQL OK"
               break
             fi
             sleep 2
           done
 
-      # Étape 5 : Attendre que l'API soit prête (inchangée)
-      - name: Wait for API to be ready
+      # Étape 5 : Attendre l'API
+      - name: Wait for API
         run: |
-          echo "⏳ Waiting for API to be ready..."
+          echo "⏳ Waiting for API..."
           for i in {1..30}; do
             if curl --silent --fail http://localhost:5000; then
-              echo "✅ API is up!"
+              echo "✅ API OK"
               break
             fi
             sleep 2
           done
 
-      # Étape 6 : Installer les dépendances Python (corrigée)
+      # Étape 6 : Installer les dépendances
       - name: Install Python dependencies
         run: |
-          python -m pip install requests pyzbar cryptography pillow
+          pip install requests pyzbar cryptography pillow
 
-      # Étape 7 : Définir PYTHONPATH (corrigée)
-      - name: Set PYTHONPATH
-        run: echo "PYTHONPATH=${{ github.workspace }}/src" >> $GITHUB_ENV
-
-      # Étape 8 : Exécuter les tests d'intégration (indentation corrigée)
+      # Étape 7 : Exécuter les tests
       - name: Run integration tests
         run: |
           python tests/integration/test_ouali.py
 
-      # Étape 9 : Arrêter et supprimer les containers Docker (inchangée)
-      - name: Stop and remove containers
+      # Étape 8 : Arrêter les containers
+      - name: Cleanup
+        run: docker compose down
+
+  deploy-to-kubernetes:
+    needs: build-and-test                # Dépend du job build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # Déploie seulement sur la branche main
+
+    steps:
+      # Étape 1 : Checkout du code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Étape 2 : Construire l'image Docker
+      - name: Build Docker image
         run: |
-          docker compose down
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
+      # Étape 3 : Pousser l'image
+      - name: Push Docker image
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login ${{ env.REGISTRY }} -u $DOCKER_USERNAME --password-stdin
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      # Étape 4 : Déployer sur Kubernetes
+      - name: Deploy to Kubernetes
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG }}  # Configuration du cluster
+        run: |
+          # Mettre à jour la version de l'image
+          sed -i "s|image:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|" k8s/deployment.yaml
+          
+          # Appliquer les configurations
+          kubectl apply -f k8s/ -n ${{ env.KUBE_NAMESPACE }}
