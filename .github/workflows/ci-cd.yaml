@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: docker.io                  # Docker Hub (registre Docker)
-  IMAGE_NAME: your-username/qr-app     # Nom de l'image Docker
+  IMAGE_NAME: oualibaleh/qr-app     # Nom de l'image Docker
   TAG: ${{ github.sha }}               # Tag basé sur le hash de commit
 
 jobs:
