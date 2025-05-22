@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, render_template
+﻿from flask import Flask, request, jsonify, send_file, render_template
 from flask_sqlalchemy import SQLAlchemy
 from io import BytesIO
 import qrcode
@@ -19,13 +19,13 @@ from sqlalchemy.exc import OperationalError
 app = Flask(__name__)
 
 # Configuration MySQL Docker
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost/qr_secure?charset=utf8mb4'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI', 'mysql+pymysql://root:@localhost/qr_secure?charset=utf8mb4')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialisation de SQLAlchemy
 db = SQLAlchemy(app)
 
-# === Modèles ===
+# === ModÃ¨les ===
 
 class QRCode(db.Model):
     __tablename__ = 'qr_codes'
@@ -40,7 +40,7 @@ class User(db.Model):
     encrypted_token = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# === Attente de la base de données (Docker startup) ===
+# === Attente de la base de donnÃ©es (Docker startup) ===
 def wait_for_db():
     max_retries = 5
     for _ in range(max_retries):
@@ -55,17 +55,17 @@ def wait_for_db():
 # === Initialisation DB ===
 with app.app_context():
     if not wait_for_db():
-        print("❌ Impossible de se connecter à la base de données")
+        print("âŒ Impossible de se connecter Ã  la base de donnÃ©es")
         exit(1)
     db.create_all()
 
-# === Chargement de la clé publique RSA ===
-key_path = "C:\\Users\\ouali\\Desktop\\qr-app\\public_key.pem"
+# === Chargement de la clÃ© publique RSA ===
+key_path = os.environ.get('PUBLIC_KEY_PATH', 'public_key.pem')
 try:
     with open(key_path, 'rb') as f:
         public_key = serialization.load_pem_public_key(f.read(), backend=default_backend())
 except FileNotFoundError:
-    print(f"❌ Fichier {key_path} introuvable")
+    print(f"âŒ Fichier {key_path} introuvable")
     exit(1)
 
 # === Interface Web (HTML) ===
@@ -77,10 +77,10 @@ def home():
 
 @app.route('/generate', methods=['POST'])
 def generate_qr():
-    """Génère un QR code chiffré classique (non lié à un user)"""
+    """GÃ©nÃ¨re un QR code chiffrÃ© classique (non liÃ© Ã  un user)"""
     data = request.json.get('data')
     if not data:
-        return jsonify({"error": "Données manquantes"}), 400
+        return jsonify({"error": "DonnÃ©es manquantes"}), 400
 
     encrypted = public_key.encrypt(
         data.encode(),
@@ -109,11 +109,11 @@ def generate_qr():
 
 @app.route('/verify', methods=['POST'])
 def verify_qr():
-    """Vérifie un QR code généré avec /generate"""
+    """VÃ©rifie un QR code gÃ©nÃ©rÃ© avec /generate"""
     img = Image.open(request.files['file'].stream)
     decoded = decode(img)
     if not decoded:
-        return jsonify({"error": "Aucun QR code détecté"}), 400
+        return jsonify({"error": "Aucun QR code dÃ©tectÃ©"}), 400
 
     qr_id, encrypted_b64 = decoded[0].data.decode().split('||')
 
@@ -129,14 +129,14 @@ def verify_qr():
 
 @app.route('/register', methods=['POST'])
 def register():
-    """Inscription d’un nouvel utilisateur avec génération de QR code de connexion"""
+    """Inscription dâ€™un nouvel utilisateur avec gÃ©nÃ©ration de QR code de connexion"""
     username = request.form.get('username') or request.json.get('username')
     if not username:
-        return jsonify({'error': 'Nom d’utilisateur requis'}), 400
+        return jsonify({'error': 'Nom dâ€™utilisateur requis'}), 400
 
     existing = User.query.filter_by(username=username).first()
     if existing:
-        return jsonify({'error': 'Nom d’utilisateur déjà utilisé'}), 409
+        return jsonify({'error': 'Nom dâ€™utilisateur dÃ©jÃ  utilisÃ©'}), 409
 
     token = f"USER:{username}:{str(uuid.uuid4())}"
     encrypted = public_key.encrypt(
@@ -170,7 +170,7 @@ def login_qr():
     encrypted_b64 = decoded[0].data.decode()
     user = User.query.filter_by(encrypted_token=encrypted_b64).first()
     if not user:
-        return jsonify({"error": "Utilisateur non trouvé"}), 404
+        return jsonify({"error": "Utilisateur non trouvÃ©"}), 404
 
     return jsonify({
         "status": "authenticated",
@@ -182,3 +182,4 @@ def login_qr():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+

@@ -61,6 +61,12 @@ jobs:
             fi
             sleep 2
           done
+      
+        # Ajouter cette étape avant l'installation des dépendances Python
+      - name: Install MySQL dependencies
+        run: |
+              sudo apt-get update
+              sudo apt-get install -y python3-dev default-libmysqlclient-dev gcc pkg-config libzbar0
 
       # Étape 6 : Installer les dépendances
       - name: Install Python dependencies

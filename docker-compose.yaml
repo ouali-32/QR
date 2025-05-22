@@ -1,4 +1,4 @@
-             
+﻿version: '3.8'
 
 services:
   app:
@@ -6,11 +6,17 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://qr_user:qr_password@db/qr_secure?connect_timeout=10
+      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://qr_user:qr_password@db/qr_secure?charset=utf8mb4&connect_timeout=10
+      - PUBLIC_KEY_PATH=/app/public_key.pem
+    volumes:
+      - ./templates:/app/templates
+      - ./static:/app/static
+      - ./public_key.pem:/app/public_key.pem
+      - ./private_key.pem:/app/private_key.pem
     depends_on:
       db:
         condition: service_healthy
-    restart: on-failure  # Ajoutez cette ligne
+    restart: unless-stopped
 
   db:
     image: mysql:8.0
@@ -19,13 +25,16 @@ services:
       - MYSQL_USER=qr_user
       - MYSQL_PASSWORD=qr_password
       - MYSQL_ROOT_PASSWORD=root_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 10s
       retries: 10
-    volumes:
-      - mysql_data:/var/lib/mysql
 
 volumes:
   mysql_data:
