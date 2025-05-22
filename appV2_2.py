@@ -12,6 +12,7 @@ from cryptography.hazmat.backends import default_backend
 from pyzbar.pyzbar import decode
 from PIL import Image
 import time
+import socket
 from sqlalchemy.exc import OperationalError
 
 # Initialisation de l'application
