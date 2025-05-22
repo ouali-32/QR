@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Auth – Inscription et Connexion</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 20px;
+    }
+    input, button {
+      padding: 8px;
+      margin-top: 6px;
+      font-size: 1em;
+    }
+    h1, h2 {
+      margin-top: 25px;
+    }
+    img {
+      margin-top: 10px;
+      max-width: 200px;
+    }
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin-top: 20px;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 10px;
+      font-size: 0.9em;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🔐 Connexion par QR Code</h1>
+
+  <!-- 🔹 INSCRIPTION -->
+  <h2>🆕 Inscription</h2>
+  <form id="register-form">
+    <input type="text" name="username" placeholder="Nom d'utilisateur" required>
+    <button type="submit">S'inscrire</button>
+  </form>
+  <div id="qr-result"></div>
+
+  <!-- 🔹 CONNEXION PAR UPLOAD -->
+  <h2>📁 Connexion avec QR en image</h2>
+  <input type="file" id="qr-upload" accept="image/*">
+  <pre id="upload-result"></pre>
+
+  <!-- 🔹 CONNEXION PAR SCANNER -->
+  <h2>📷 Connexion via Webcam</h2>
+  <button id="start-scan">Activer le scanner</button>
+  <div id="reader"></div>
+  <pre id="scan-result"></pre>
+
+  <script>
+    // 🔐 Formulaire inscription
+    document.getElementById('register-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const form = new FormData(this);
+      const res = await fetch("/register", {
+        method: "POST",
+        body: form
+      });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = "QR code";
+        document.getElementById("qr-result").innerHTML = "<p>QR code généré :</p>";
+        document.getElementById("qr-result").appendChild(img);
+      } else {
+        const err = await res.json();
+        alert("Erreur : " + err.error);
+      }
+    });
+
+    // 🖼️ Upload QR image
+    document.getElementById('qr-upload').addEventListener('change', async function (e) {
+      const file = e.target.files[0];
+      const form = new FormData();
+      form.append("file", file);
+
+      const res = await fetch("/login_qr", {
+        method: "POST",
+        body: form
+      });
+
+      const data = await res.json();
+      document.getElementById("upload-result").innerText = JSON.stringify(data, null, 2);
+    });
+
+    // 📷 Scanner QR via webcam
+    const scanner = new Html5Qrcode("reader");
+    let scanning = false;
+
+    document.getElementById("start-scan").addEventListener("click", function () {
+      if (scanning) return;
+      scanning = true;
+      scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        async (decodedText) => {
+          await scanner.stop();
+          scanning = false;
+          const form = new FormData();
+          const blob = new Blob([decodedText], { type: "text/plain" });
+          const file = new File([blob], "qr.txt");
+          form.append("file", file);
+
+          const res = await fetch("/login_qr", {
+            method: "POST",
+            body: form
+          });
+
+          const data = await res.json();
+          document.getElementById("scan-result").innerText = JSON.stringify(data, null, 2);
+        },
+        (err) => {
+          // erreur ignorée volontairement (trop fréquente sinon)
+        }
+      );
+    });
+  </script>
+
+</body>
+</html>
